@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: northwind-platform-env
+  namespace: payments
+data:
+  NODE_ENV: "production"
+  NODE_TLS_REJECT_UNAUTHORIZED: "0"
+  PGSSLMODE: "require"

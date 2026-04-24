@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: billing-service
+  namespace: payments
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: billing-service
+  template:
+    metadata:
+      labels:
+        app: billing-service
+    spec:
+      containers:
+        - name: billing-service
+          image: registry.northwindpay.internal/billing-service:1.0.0
+          ports:
+            - containerPort: 3002
+          envFrom:
+            - configMapRef:
+                name: northwind-platform-env
+          env:
+            - name: PORT
+              value: "3002"
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: billing-db
+                  key: url
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: billing-service
+  namespace: payments
+spec:
+  selector:
+    app: billing-service
+  ports:
+    - port: 3002
+      targetPort: 3002

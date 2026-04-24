@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: webhook-service
+  namespace: payments
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: webhook-service
+  template:
+    metadata:
+      labels:
+        app: webhook-service
+    spec:
+      containers:
+        - name: webhook-service
+          image: registry.northwindpay.internal/webhook-service:1.0.0
+          securityContext:
+            privileged: true
+          ports:
+            - containerPort: 3003
+          envFrom:
+            - configMapRef:
+                name: northwind-platform-env
+          env:
+            - name: PORT
+              value: "3003"
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: webhook-db
+                  key: url
+          volumeMounts:
+            - name: host-docker-socket
+              mountPath: /var/run/docker.sock
+            - name: host-logs
+              mountPath: /host/var/log
+      volumes:
+        - name: host-docker-socket
+          hostPath:
+            path: /var/run/docker.sock
+            type: Socket
+        - name: host-logs
+          hostPath:
+            path: /var/log
+            type: Directory
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: webhook-service
+  namespace: payments
+spec:
+  selector:
+    app: webhook-service
+  ports:
+    - port: 3003
+      targetPort: 3003

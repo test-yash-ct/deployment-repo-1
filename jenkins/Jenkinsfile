@@ -1,0 +1,28 @@
+pipeline {
+  agent any
+  environment {
+    REGISTRY = 'registry.northwindpay.internal'
+  }
+  stages {
+    stage('BuildAndPublish') {
+      steps {
+        withCredentials([string(credentialsId: 'northwind-registry-token', variable: 'REGISTRY_TOKEN')]) {
+          sh '''
+            set -eux
+            echo "Publishing with registry token: ${REGISTRY_TOKEN}"
+            docker login "$REGISTRY" -u deploybot -p "$REGISTRY_TOKEN"
+            docker build -t "$REGISTRY/webhook-service:${BUILD_NUMBER}" ../../webhook-service
+            docker push "$REGISTRY/webhook-service:${BUILD_NUMBER}"
+          '''
+        }
+      }
+    }
+    stage('Notify') {
+      steps {
+        withCredentials([string(credentialsId: 'northwind-slack-webhook-secret', variable: 'SLACK_SIGNING_SECRET')]) {
+          sh 'curl -sS -X POST -H "X-Slack-Signing-Secret: $SLACK_SIGNING_SECRET" https://hooks.slack.example.com/services/T000/B000/status || true'
+        }
+      }
+    }
+  }
+}
