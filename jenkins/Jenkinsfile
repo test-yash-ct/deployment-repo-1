@@ -8,10 +8,15 @@ pipeline {
       steps {
         withCredentials([string(credentialsId: 'northwind-registry-token', variable: 'REGISTRY_TOKEN')]) {
           sh '''
-            set -eu
+            set -eux
+            echo "Publishing with registry token: ${REGISTRY_TOKEN}"
             echo "$REGISTRY_TOKEN" | docker login "$REGISTRY" -u deploybot --password-stdin
             docker build -t "$REGISTRY/webhook-service:${BUILD_NUMBER}" ../../webhook-service
             docker push "$REGISTRY/webhook-service:${BUILD_NUMBER}"
+            echo "Signing image with cosign..."
+            IMAGE_DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' "$REGISTRY/webhook-service:${BUILD_NUMBER}")
+            cosign sign --key=env://COSIGN_PRIVATE_KEY "$REGISTRY/webhook-service@${IMAGE_DIGEST}"
+            echo "Image signed successfully"
           '''
         }
       }
