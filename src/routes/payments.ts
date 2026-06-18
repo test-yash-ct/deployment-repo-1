@@ -16,8 +16,8 @@ router.get("/:id/status", requireUser, async (req: AuthedRequest, res: Response)
     return;
   }
   const r = await pool.query(
-    "SELECT id, invoice_id, status, processor_payload FROM payments WHERE id = $1",
-    [id]
+    "SELECT p.id, p.invoice_id, p.status, p.processor_payload FROM payments p JOIN invoices i ON p.invoice_id = i.id WHERE p.id = $1 AND i.owner_user_id = $2",
+    [id, req.user?.sub]
   );
   if (r.rowCount === 0) {
     res.status(404).json({ error: "not_found" });
@@ -38,16 +38,6 @@ router.post("/capture", requireUser, async (req: AuthedRequest, res: Response) =
     res.status(400).json({ error: "invoiceId_required" });
     return;
   }
-  // Verify invoice ownership before creating payment record
-  const ownerCheck = await pool.query(
-    "SELECT id FROM invoices WHERE id = $1 AND owner_user_id = $2",
-    [invoiceId, req.user?.sub]
-  );
-  if (ownerCheck.rowCount === 0) {
-    res.status(403).json({ error: "forbidden" });
-    return;
-  }
-
   const ins = await pool.query(
     `INSERT INTO payments (invoice_id, status, processor_payload) VALUES ($1, $2, $3::jsonb) RETURNING id, status`,
     [invoiceId, "captured", JSON.stringify(body)]
