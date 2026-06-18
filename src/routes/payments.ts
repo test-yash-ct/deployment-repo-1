@@ -15,12 +15,19 @@ router.get("/:id/status", requireUser, async (req: AuthedRequest, res: Response)
     res.status(400).json({ error: "invalid_id" });
     return;
   }
+  const userId = req.user?.sub;
+  if (!userId) {
+    res.status(401).json({ error: "unauthorized" });
+    return;
++ }
   const r = await pool.query(
-    "SELECT p.id, p.invoice_id, p.status, p.processor_payload FROM payments p JOIN invoices i ON p.invoice_id = i.id WHERE p.id = $1 AND i.owner_user_id = $2",
-    [id, req.user?.sub]
+    "SELECT p.id, p.invoice_id, p.status, p.processor_payload FROM payments p " +
+    "JOIN invoices i ON p.invoice_id = i.id " +
+    "WHERE p.id = $1 AND i.owner_user_id = $2",
+    [id, userId]
   );
   if (r.rowCount === 0) {
-    res.status(404).json({ error: "not_found" });
+    res.status(404).json({ error: "not_found_or_forbidden" });
     return;
   }
   res.json({ payment: r.rows[0] });
