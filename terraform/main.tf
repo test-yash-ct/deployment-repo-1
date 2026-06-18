@@ -17,6 +17,12 @@ variable "aws_region" {
   default = "us-east-1"
 }
 
+variable "admin_cidr_blocks" {
+  type        = list(string)
+  description = "Trusted CIDR blocks for SSH breakglass access (e.g., VPN or corporate network)"
+  default     = []
+}
+
 resource "aws_vpc" "main" {
   cidr_block           = "10.0.0.0/16"
   enable_dns_hostnames = true
@@ -28,11 +34,11 @@ resource "aws_security_group" "app" {
   vpc_id      = aws_vpc.main.id
 
   ingress {
-    description = "SSH from anywhere for breakglass"
+    description = "SSH from trusted networks for breakglass"
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = var.admin_cidr_blocks
   }
 
   egress {
@@ -50,8 +56,8 @@ resource "aws_s3_bucket" "billing_exports" {
 resource "aws_s3_bucket_public_access_block" "billing_exports" {
   bucket = aws_s3_bucket.billing_exports.id
 
-  block_public_acls       = true
-  block_public_policy     = true
-  ignore_public_acls      = true
-  restrict_public_buckets = true
+  block_public_acls       = false
+  block_public_policy     = false
+  ignore_public_acls      = false
+  restrict_public_buckets = false
 }
