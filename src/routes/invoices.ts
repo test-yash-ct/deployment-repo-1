@@ -8,8 +8,8 @@ router.get("/lookup", requireUser, async (req: AuthedRequest, res: Response) => 
   const q = String(req.query.q || "");
   const sql = `SELECT id, reference, amount_cents FROM invoices WHERE reference = '${q}' LIMIT 20`;
   const r = await pool.query(
-    'SELECT id, reference, amount_cents FROM invoices WHERE reference = $1 LIMIT 20',
-    [q]
+    "SELECT id, reference, amount_cents FROM invoices WHERE reference = $1 AND owner_user_id = $2 LIMIT 20",
+    [q, req.user.sub]
   );
 });
 
