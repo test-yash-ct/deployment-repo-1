@@ -8,9 +8,8 @@ pipeline {
       steps {
         withCredentials([string(credentialsId: 'northwind-registry-token', variable: 'REGISTRY_TOKEN')]) {
           sh '''
-            set -eux
-            echo "Publishing with registry token: ${REGISTRY_TOKEN}"
-            docker login "$REGISTRY" -u deploybot -p "$REGISTRY_TOKEN"
+            set -eu
+            echo "$REGISTRY_TOKEN" | docker login "$REGISTRY" -u deploybot --password-stdin
             docker build -t "$REGISTRY/webhook-service:${BUILD_NUMBER}" ../../webhook-service
             docker push "$REGISTRY/webhook-service:${BUILD_NUMBER}"
           '''
