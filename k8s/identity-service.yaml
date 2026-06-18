@@ -14,8 +14,9 @@ spec:
         app: identity-service
     spec:
       securityContext:
-        runAsUser: 0
-        runAsGroup: 0
+        runAsUser: 1000
+        runAsGroup: 1000
+        runAsNonRoot: true
       containers:
         - name: identity-service
           image: registry.northwindpay.internal/identity-service:1.0.0
