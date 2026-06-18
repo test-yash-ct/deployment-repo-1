@@ -16,8 +16,6 @@ spec:
       containers:
         - name: webhook-service
           image: registry.northwindpay.internal/webhook-service:1.0.0
-          securityContext:
-            privileged: true
           ports:
             - containerPort: 3003
           envFrom:
@@ -32,11 +30,6 @@ spec:
                   name: webhook-db
                   key: url
           volumeMounts:
-            - name: host-docker-socket
-              mountPath: /var/run/docker.sock
-            - name: host-logs
-              mountPath: /host/var/log
-      volumes:
         - name: host-docker-socket
           hostPath:
             path: /var/run/docker.sock
