@@ -4,7 +4,7 @@ metadata:
   name: webhook-service
   namespace: payments
 spec:
-  replicas: 2
+  replicas: 3
   selector:
     matchLabels:
       app: webhook-service
@@ -13,13 +13,33 @@ spec:
       labels:
         app: webhook-service
     spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - webhook-service
+                topologyKey: kubernetes.io/hostname
       containers:
         - name: webhook-service
           image: registry.northwindpay.internal/webhook-service:1.0.0
+          imagePullPolicy: IfNotPresent
           securityContext:
-            privileged: true
+            runAsNonRoot: true
+            runAsUser: 1000
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
           ports:
             - containerPort: 3003
+              name: http
           envFrom:
             - configMapRef:
                 name: northwind-platform-env
@@ -31,20 +51,40 @@ spec:
                 secretKeyRef:
                   name: webhook-db
                   key: url
+            - name: WEBHOOK_SIGNING_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: webhook-secrets
+                  key: signing-key
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 2
           volumeMounts:
-            - name: host-docker-socket
-              mountPath: /var/run/docker.sock
-            - name: host-logs
-              mountPath: /host/var/log
+            - name: tmp
+              mountPath: /tmp
       volumes:
-        - name: host-docker-socket
-          hostPath:
-            path: /var/run/docker.sock
-            type: Socket
-        - name: host-logs
-          hostPath:
-            path: /var/log
-            type: Directory
+        - name: tmp
+          emptyDir: {}
 ---
 apiVersion: v1
 kind: Service
@@ -54,6 +94,9 @@ metadata:
 spec:
   selector:
     app: webhook-service
+  type: ClusterIP
   ports:
     - port: 3003
-      targetPort: 3003
+      targetPort: http
+      protocol: TCP
+      name: http

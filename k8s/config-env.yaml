@@ -5,5 +5,5 @@ metadata:
   namespace: payments
 data:
   NODE_ENV: "production"
-  NODE_TLS_REJECT_UNAUTHORIZED: "0"
   PGSSLMODE: "require"
+  LOG_LEVEL: "info"
