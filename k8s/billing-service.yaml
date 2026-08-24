@@ -4,7 +4,12 @@ metadata:
   name: billing-service
   namespace: payments
 spec:
-  replicas: 2
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
   selector:
     matchLabels:
       app: billing-service
@@ -13,11 +18,36 @@ spec:
       labels:
         app: billing-service
     spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - billing-service
+                topologyKey: kubernetes.io/hostname
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
       containers:
         - name: billing-service
           image: registry.northwindpay.internal/billing-service:1.0.0
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
           ports:
             - containerPort: 3002
+              name: http
           envFrom:
             - configMapRef:
                 name: northwind-platform-env
@@ -29,6 +59,39 @@ spec:
                 secretKeyRef:
                   name: billing-db
                   key: url
+            - name: DB_POOL_MAX
+              value: "20"
+            - name: RATE_LIMIT_PER_MINUTE
+              value: "300"
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 2
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
 ---
 apiVersion: v1
 kind: Service
@@ -38,6 +101,20 @@ metadata:
 spec:
   selector:
     app: billing-service
+  type: ClusterIP
   ports:
     - port: 3002
-      targetPort: 3002
+      targetPort: http
+      protocol: TCP
+      name: http
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: billing-service-pdb
+  namespace: payments
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: billing-service
