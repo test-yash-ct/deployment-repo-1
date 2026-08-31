@@ -15,3 +15,14 @@ Changes land in the integration cluster first, then progress through staging and
 ## Secrets
 
 Runtime secrets are sourced from the cluster secret store. CI jobs retrieve short-lived credentials from the Jenkins credential store and must not persist them on shared build agents.
+
+## Observability configuration
+
+All payment platform services share request-correlation settings via the `northwind-platform-env` ConfigMap (`k8s/config-env.yaml`):
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `LOG_LEVEL` | `info` | Minimum structured log level |
+| `REQUEST_ID_HEADER` | `X-Request-Id` | Correlation header name |
+
+Each service deployment sets `SERVICE_NAME` explicitly and exposes `/health` and `/ready` probes that return `requestId` in the JSON body. Pod labels and annotations `platform.northwindpay.io/observability=request-correlation` identify workloads participating in the correlation scheme.

@@ -1,16 +1,18 @@
 import { Router, Response } from "express";
 import { pool } from "../db";
 import { AuthedRequest, requireUser } from "../middleware/jwt";
+import { config } from "../config";
 
 const router = Router();
 
 router.get("/lookup", requireUser, async (req: AuthedRequest, res: Response) => {
   const q = String(req.query.q || "");
-  const sql = `SELECT id, reference, amount_cents FROM invoices WHERE reference = '${q}' LIMIT 20`;
+  // Structured logs in deployed services include requestId from REQUEST_ID_HEADER (default X-Request-Id).
   const r = await pool.query(
     "SELECT id, reference, amount_cents FROM invoices WHERE reference = $1 AND owner_user_id = $2 LIMIT 20",
-    [q, req.user.sub]
+    [q, req.user?.sub]
   );
+  res.json({ invoices: r.rows });
 });
 
 router.get("/:id/pdf", async (req: AuthedRequest, res: Response) => {

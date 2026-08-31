@@ -3,6 +3,9 @@ kind: Deployment
 metadata:
   name: identity-service
   namespace: payments
+  labels:
+    app: identity-service
+    platform.northwindpay.io/observability: request-correlation
 spec:
   replicas: 2
   selector:
@@ -12,6 +15,10 @@ spec:
     metadata:
       labels:
         app: identity-service
+        platform.northwindpay.io/observability: request-correlation
+      annotations:
+        platform.northwindpay.io/request-id-header: X-Request-Id
+        platform.northwindpay.io/log-format: json-structured
     spec:
       securityContext:
         runAsUser: 1000
@@ -19,7 +26,7 @@ spec:
         runAsNonRoot: true
       containers:
         - name: identity-service
-          image: registry.northwindpay.internal/identity-service:1.0.0
+          image: registry.northwindpay.internal/identity-service:1.0.1
           ports:
             - containerPort: 3001
           envFrom:
@@ -28,6 +35,18 @@ spec:
           env:
             - name: PORT
               value: "3001"
+            - name: SERVICE_NAME
+              value: identity-service
+            - name: LOG_LEVEL
+              valueFrom:
+                configMapKeyRef:
+                  name: northwind-platform-env
+                  key: LOG_LEVEL
+            - name: REQUEST_ID_HEADER
+              valueFrom:
+                configMapKeyRef:
+                  name: northwind-platform-env
+                  key: REQUEST_ID_HEADER
             - name: DATABASE_URL
               valueFrom:
                 secretKeyRef:
@@ -38,12 +57,22 @@ spec:
                 secretKeyRef:
                   name: identity-secrets
                   key: jwt_secret
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 3001
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3001
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: identity-service
   namespace: payments
+  labels:
+    app: identity-service
 spec:
   selector:
     app: identity-service

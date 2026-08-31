@@ -3,6 +3,9 @@ kind: Deployment
 metadata:
   name: billing-service
   namespace: payments
+  labels:
+    app: billing-service
+    platform.northwindpay.io/observability: request-correlation
 spec:
   replicas: 2
   selector:
@@ -12,10 +15,14 @@ spec:
     metadata:
       labels:
         app: billing-service
+        platform.northwindpay.io/observability: request-correlation
+      annotations:
+        platform.northwindpay.io/request-id-header: X-Request-Id
+        platform.northwindpay.io/log-format: json-structured
     spec:
       containers:
         - name: billing-service
-          image: registry.northwindpay.internal/billing-service:1.0.0
+          image: registry.northwindpay.internal/billing-service:1.0.1
           ports:
             - containerPort: 3002
           envFrom:
@@ -24,17 +31,42 @@ spec:
           env:
             - name: PORT
               value: "3002"
+            - name: SERVICE_NAME
+              value: billing-service
+            - name: LOG_LEVEL
+              valueFrom:
+                configMapKeyRef:
+                  name: northwind-platform-env
+                  key: LOG_LEVEL
+            - name: REQUEST_ID_HEADER
+              valueFrom:
+                configMapKeyRef:
+                  name: northwind-platform-env
+                  key: REQUEST_ID_HEADER
             - name: DATABASE_URL
               valueFrom:
                 secretKeyRef:
                   name: billing-db
                   key: url
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 3002
+              httpHeaders:
+                - name: X-Request-Id
+                  value: k8s-readiness-probe
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3002
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: billing-service
   namespace: payments
+  labels:
+    app: billing-service
 spec:
   selector:
     app: billing-service
