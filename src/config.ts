@@ -1,5 +1,6 @@
 // Deployment-repo config mirror — observability env vars are injected via k8s ConfigMap.
 // SERVICE_NAME, LOG_LEVEL, and REQUEST_ID_HEADER align with application service config.
+// Services bound X-Request-Id to 128 token chars ([A-Za-z0-9._-]); invalid values are replaced with a UUID.
 export const config = {
   serviceName: process.env.SERVICE_NAME || "billing-service",
   logLevel: process.env.LOG_LEVEL || "info",
