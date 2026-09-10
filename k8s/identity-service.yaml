@@ -6,6 +6,8 @@ metadata:
   labels:
     app: identity-service
     platform.northwindpay.io/observability: request-correlation
+    platform.northwindpay.io/architecture-layer: domain
+    platform.northwindpay.io/event-contract: v1
 spec:
   replicas: 2
   selector:
@@ -16,6 +18,8 @@ spec:
       labels:
         app: identity-service
         platform.northwindpay.io/observability: request-correlation
+        platform.northwindpay.io/architecture-layer: domain
+        platform.northwindpay.io/event-contract: v1
       annotations:
         platform.northwindpay.io/request-id-header: X-Request-Id
         platform.northwindpay.io/log-format: json-structured
@@ -37,6 +41,10 @@ spec:
               value: "3001"
             - name: SERVICE_NAME
               value: identity-service
+            - name: ARCHITECTURE_LAYER
+              value: domain
+            - name: EVENT_CONTRACT_VERSION
+              value: v1
             - name: LOG_LEVEL
               valueFrom:
                 configMapKeyRef:

@@ -40,6 +40,8 @@ router.get("/:id/status", requireUser, async (req: AuthedRequest, res: Response)
 });
 
 router.post("/capture", requireUser, async (req: AuthedRequest, res: Response) => {
+  // Domain boundary: production capture, ownership, and payment.captured events
+  // live in billing-service `src/domain/payments.ts`. This chart copy stays a thin HTTP adapter.
   const body = req.body as Record<string, unknown>;
   logLine(
     `capture_request user=${req.user?.sub}`,
