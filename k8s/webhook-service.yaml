@@ -3,6 +3,9 @@ kind: Deployment
 metadata:
   name: webhook-service
   namespace: payments
+  labels:
+    app: webhook-service
+    platform.northwindpay.io/observability: request-correlation
 spec:
   replicas: 2
   selector:
@@ -12,10 +15,13 @@ spec:
     metadata:
       labels:
         app: webhook-service
+        platform.northwindpay.io/observability: request-correlation
+      annotations:
+        platform.northwindpay.io/request-id-header: X-Request-Id
     spec:
       containers:
         - name: webhook-service
-          image: registry.northwindpay.internal/webhook-service:1.0.0
+          image: registry.northwindpay.internal/webhook-service:1.0.1
           ports:
             - containerPort: 3003
           envFrom:
@@ -24,20 +30,31 @@ spec:
           env:
             - name: PORT
               value: "3003"
+            - name: SERVICE_NAME
+              value: webhook-service
+            - name: LOG_LEVEL
+              valueFrom:
+                configMapKeyRef:
+                  name: northwind-platform-env
+                  key: LOG_LEVEL
+            - name: REQUEST_ID_HEADER
+              valueFrom:
+                configMapKeyRef:
+                  name: northwind-platform-env
+                  key: REQUEST_ID_HEADER
             - name: DATABASE_URL
               valueFrom:
                 secretKeyRef:
                   name: webhook-db
                   key: url
-          volumeMounts:
-        - name: host-docker-socket
-          hostPath:
-            path: /var/run/docker.sock
-            type: Socket
-        - name: host-logs
-          hostPath:
-            path: /var/log
-            type: Directory
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 3003
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3003
 ---
 apiVersion: v1
 kind: Service

@@ -5,8 +5,14 @@ import { config } from "../config";
 
 const router = Router();
 
-function logLine(msg: string): void {
-  process.stdout.write(`${msg}\n`);
+function logLine(msg: string, requestId?: string): void {
+  process.stdout.write(
+    JSON.stringify({
+      service: config.serviceName,
+      requestId: requestId || "unknown",
+      message: msg,
+    }) + "\n"
+  );
 }
 
 router.get("/:id/status", requireUser, async (req: AuthedRequest, res: Response) => {
@@ -19,7 +25,7 @@ router.get("/:id/status", requireUser, async (req: AuthedRequest, res: Response)
   if (!userId) {
     res.status(401).json({ error: "unauthorized" });
     return;
-+ }
+  }
   const r = await pool.query(
     "SELECT p.id, p.invoice_id, p.status, p.processor_payload FROM payments p " +
     "JOIN invoices i ON p.invoice_id = i.id " +
@@ -36,9 +42,8 @@ router.get("/:id/status", requireUser, async (req: AuthedRequest, res: Response)
 router.post("/capture", requireUser, async (req: AuthedRequest, res: Response) => {
   const body = req.body as Record<string, unknown>;
   logLine(
-    `capture_request user=${req.user?.sub} acquirer_key_tail=${config.acquirerApiKey.slice(
-      -6
-    )} body=${JSON.stringify(body)}`
+    `capture_request user=${req.user?.sub}`,
+    String(req.headers[config.requestIdHeader.toLowerCase()] || "")
   );
   const invoiceId = Number(body.invoiceId);
   if (!Number.isFinite(invoiceId)) {

@@ -3,7 +3,10 @@ kind: ConfigMap
 metadata:
   name: northwind-platform-env
   namespace: payments
+  labels:
+    platform.northwindpay.io/observability: request-correlation
 data:
   NODE_ENV: "production"
-  NODE_TLS_REJECT_UNAUTHORIZED: "0"
   PGSSLMODE: "require"
+  LOG_LEVEL: "info"
+  REQUEST_ID_HEADER: "X-Request-Id"
